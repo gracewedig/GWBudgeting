@@ -64,6 +64,8 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .status i { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
 .status.ok i { background: var(--good); }
 .status .ver { opacity: .7; }
+.banner { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--bad); color: #fff; border-radius: 14px; padding: 10px 14px; font-weight: 700; font-size: 14px; }
+.banner button { border: 0; background: #fff; color: var(--bad); font-weight: 800; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
 
 .cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
@@ -226,6 +228,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 
 <canvas id="sparkles" aria-hidden="true"></canvas>
 <div class="app">
+  <div class="banner" id="banner" hidden><span id="bannerText"></span><button type="button" id="bannerBtn">Reload</button></div>
   <header>
     <div class="brand">
       <svg width="38" height="32" viewBox="0 0 46 38" aria-hidden="true">
@@ -235,7 +238,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
       </svg>
       <h1>Sparkle Ledger</h1>
     </div>
-    <span class="status" id="status"><i></i><span id="statusText">Connecting…</span><span class="ver">· v11</span></span>
+    <span class="status" id="status"><i></i><span id="statusText">Connecting…</span><span class="ver">· v12</span></span>
   </header>
 
   <div class="cols">
@@ -593,6 +596,32 @@ $("#gClearDone").addEventListener("click", () => { S.groceries = S.groceries.fil
 
 // ---------- storage: private to this person's account, else this browser ----------
 const LS_KEY = "sparkle-ledger-v3";
+const APP_VER = 12, INSTANCE = uid();
+let readOnly = false;
+function showBanner(kind) {
+  $("#bannerText").textContent = kind === "new"
+    ? "A newer version of Sparkle Ledger is ready. Tap Reload to get it."
+    : "An older copy of Sparkle Ledger is open in another tab, window or device, and it's overwriting your changes. Close that copy, then tap Reload here.";
+  $("#banner").hidden = false;
+}
+$("#bannerBtn").addEventListener("click", () => location.reload());
+// Keep copies in sync, and catch old copies that overwrite newer data.
+function watchDoc(doc, apply) {
+  const start = Date.now();
+  try {
+    base.doc(doc).onSnapshot(snap => {
+      if (!snap.exists || snap.metadata?.hasPendingWrites) return;
+      const v = snap.data() || {};
+      if (v.by === INSTANCE) return;
+      // the first few seconds can still echo what was saved before this copy loaded
+      if (!v.ver || v.ver < APP_VER) { if (Date.now() - start > 5000) showBanner("old"); return; }
+      if (v.ver > APP_VER) { showBanner("new"); readOnly = true; return; }
+      const a = document.activeElement;
+      if (a && a.matches && a.matches("input") && (a.closest("#sheet") || a.closest("#gList"))) return;
+      apply(v);
+    }, () => {});
+  } catch (e) {}
+}
 let base = null, mode = "local";
 const chains = {}, timers = {};
 async function initStore() {
@@ -610,6 +639,8 @@ async function initStore() {
       }
       S.statements.sort((a, b) => a.importedAt - b.importedAt);
       fixIds(); loaded = true; save("sheet", 0); save("groceries", 0);
+      watchDoc("proforma", v => { if (v.sheet) { S.sheet = { ...DEFAULT_SHEET(), ...v.sheet }; fixIds(); renderPeriod(); renderSheet(); } });
+      watchDoc("groceries", v => { if (Array.isArray(v.items)) { S.groceries = v.items; fixIds(); renderGroceries(); } });
       setStatus(true, "Saved privately to your account"); return;
     } catch (e) { mode = "local"; }
   }
@@ -626,9 +657,10 @@ function save(key, delay = 500) {
   clearTimeout(timers[key]);
   timers[key] = setTimeout(() => {
     let doc, data;
-    if (key === "sheet") { doc = "proforma"; data = { sheet: S.sheet }; }
+    if (readOnly) return;
+    if (key === "sheet") { doc = "proforma"; data = { sheet: S.sheet, ver: APP_VER, by: INSTANCE }; }
     else if (key === "chat") { doc = "chat2"; data = { msgs: S.chat.slice(-60) }; }
-    else if (key === "groceries") { doc = "groceries"; data = { items: S.groceries.slice(0, 500) }; }
+    else if (key === "groceries") { doc = "groceries"; data = { items: S.groceries.slice(0, 500), ver: APP_VER, by: INSTANCE }; }
     else { const s = S.statements.find(x => "stmt_" + x.id === key); if (!s) return; doc = key; data = { name: s.name, importedAt: s.importedAt, txns: s.txns.map(t => [t.d, t.t, t.a]) }; }
     chains[doc] = (chains[doc] || Promise.resolve()).then(() => base.doc(doc).set(data)).catch(e => console.warn("save failed", doc, e));
   }, delay);
