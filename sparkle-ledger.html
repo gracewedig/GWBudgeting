@@ -63,6 +63,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .status { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
 .status i { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
 .status.ok i { background: var(--good); }
+.status .ver { opacity: .7; }
 
 .cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
@@ -154,6 +155,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .icon-btn:hover { background: var(--surface-2); }
 .send { flex: none; height: 40px; border-radius: 999px; border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 800; padding: 0 16px; cursor: pointer; }
 .send:disabled { opacity: .5; cursor: default; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 999px; font-size: 14px; font-weight: 700; z-index: 20; box-shadow: var(--shadow); }
 .chat.dragging { outline: 2px dashed var(--accent); outline-offset: -8px; }
 /* ---- tabs ---- */
 .left { display: grid; gap: 10px; min-width: 0; }
@@ -233,7 +235,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
       </svg>
       <h1>Sparkle Ledger</h1>
     </div>
-    <span class="status" id="status"><i></i><span id="statusText">Connecting…</span></span>
+    <span class="status" id="status"><i></i><span id="statusText">Connecting…</span><span class="ver">· v11</span></span>
   </header>
 
   <div class="cols">
@@ -319,6 +321,7 @@ const num = v => {
   if (/^-?\d+,\d{1,2}$/.test(s)) s = s.replace(",", "."); // "3,50" means 3.50
   const x = parseFloat(s.replace(/,/g, "")); return isFinite(x) ? x : 0;
 };
+function toast(msg) { let t = document.getElementById("toast"); if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; document.body.append(t); } t.textContent = msg; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 1600); }
 const bump = el => { if (!el) return; el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); };
 const fmt = n => (n < 0 ? "−" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
 const fmt2 = n => (n < 0 ? "-" : "") + "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -366,7 +369,7 @@ function renderSheet() {
   for (const sec of SECTIONS) {
     const el = document.createElement("div"); el.className = "sec";
     el.innerHTML = `<div class="sec-head"><h3>${sec.title}</h3><span class="colh">${P().cap}</span><span class="colh yh">Yearly</span><span></span></div>`;
-    for (const r of S.sheet[sec.key]) el.append(rowEl(sec, r));
+    S.sheet[sec.key].forEach((r, i) => { const re = rowEl(sec, r); re.dataset.sec = sec.key; re.dataset.idx = i; el.append(re); });
     const sub = document.createElement("div"); sub.className = "subtotal"; sub.id = "sub-" + sec.key;
     el.append(sub);
     const add = document.createElement("button"); add.type = "button"; add.className = "add"; add.textContent = "+ Add " + sec.addLabel;
@@ -379,7 +382,7 @@ function renderSheet() {
   const proj = document.createElement("div"); proj.className = "proj";
   proj.innerHTML = `<div class="proj-top"><label for="savingsNow">Savings I have now</label><input id="savingsNow" inputmode="decimal" placeholder="0" value="${esc(S.sheet.savingsNow)}"></div>
     <div class="proj-grid"><div><span>In 3 months</span><b id="p3">$0</b></div><div><span>In 6 months</span><b id="p6">$0</b></div><div><span>In 12 months</span><b id="p12">$0</b></div></div>
-    <p class="hint">Savings = income − spending − travel. ${P().word === "week" ? `Type weekly amounts and the monthly ones are worked out for you (weekly × ${wpmLabel()}, since a month is about ${wpmLabel()} weeks). Tap Monthly to see them.` : "Tap Weekly to type weekly amounts; they turn into monthly ones automatically."}</p>`;
+    <p class="hint">Savings = income − spending − travel. ${P().word === "week" ? `Type weekly amounts and the monthly ones are worked out for you (weekly × ${wpmLabel()}, since a month is about ${wpmLabel()} weeks). Tap Monthly to see them.` : "Press Enter after a number to recalculate everything. Tap Weekly to type weekly amounts; they turn into monthly ones automatically."}</p>`;
   box.append(proj);
   
   const foot = document.createElement("div"); foot.className = "sheet-foot";
@@ -422,11 +425,23 @@ function recalc() {
 // ---------- editing: one handler per area, always reading the box and the current data ----------
 const dirty = {}; let loaded = false;
 const markDirty = k => { if (!loaded) dirty[k] = true; };
-function findRow(id) { for (const sec of SECTIONS) { const r = (S.sheet[sec.key] || []).find(x => x.id === id); if (r) return r; } return null; }
+function findRow(id, rowEl) {
+  for (const sec of SECTIONS) { const r = (S.sheet[sec.key] || []).find(x => x.id === id); if (r) return r; }
+  const sec = rowEl?.dataset.sec, i = Number(rowEl?.dataset.idx);
+  return sec && S.sheet[sec] && S.sheet[sec][i] ? S.sheet[sec][i] : null;
+}
+// every line needs its own id, or edits can't find it; repair saved data that lacks them
+function fixIds() {
+  const seen = new Set();
+  for (const sec of SECTIONS) { if (!Array.isArray(S.sheet[sec.key])) S.sheet[sec.key] = []; for (const r of S.sheet[sec.key]) { if (!r.id || seen.has(r.id)) r.id = uid(); seen.add(r.id); if (r.n == null) r.n = ""; if (r.v == null) r.v = ""; } }
+  const gs = new Set();
+  S.groceries = (Array.isArray(S.groceries) ? S.groceries : []).filter(Boolean);
+  for (const g of S.groceries) { if (!g.id || gs.has(g.id)) g.id = uid(); gs.add(g.id); if (g.n == null) g.n = ""; if (g.q == null) g.q = ""; if (g.p == null) g.p = ""; }
+}
 function commitSheet(t, tidy) {
   if (t.id === "savingsNow") { S.sheet.savingsNow = t.value; markDirty("sheet"); save("sheet"); recalc(); return; }
   const rowEl = t.closest(".row"); if (!rowEl) return;
-  const r = findRow(rowEl.dataset.id); if (!r) return;
+  const r = findRow(rowEl.dataset.id, rowEl); if (!r) return;
   if (t.classList.contains("amt")) {
     const v = t.value.trim();
     r.v = v === "" ? "" : num(v) / P().f;
@@ -435,6 +450,23 @@ function commitSheet(t, tidy) {
   markDirty("sheet"); save("sheet"); recalc();
 }
 for (const ev of ["input", "change", "focusout"]) $("#sheet").addEventListener(ev, e => { if (e.target.matches("input")) commitSheet(e.target, ev !== "input"); });
+function recalcAll(flashIds) {
+  reconcile(); renderSheet(); renderGroceries();
+  for (const id of ["tIncome", "tSpend", "tTravel", "tSave", "gTotal", "gTotal2"]) bump(document.getElementById(id));
+  document.querySelectorAll(".subtotal .money").forEach(bump);
+  toast("✓ Everything recalculated");
+}
+function enterToNext(e, area) {
+  if (e.key !== "Enter" || e.isComposing || !e.target.matches("input")) return;
+  e.preventDefault();
+  const boxes = [...document.querySelectorAll(area + " input:not([type=checkbox])")];
+  const i = boxes.indexOf(e.target), nextId = boxes[i + 1]?.id;
+  (area === "#sheet" ? commitSheet : commitGrocery)(e.target, true);
+  recalcAll();
+  if (nextId) document.getElementById(nextId)?.focus();
+}
+$("#sheet").addEventListener("keydown", e => enterToNext(e, "#sheet"));
+$("#gList").addEventListener("keydown", e => enterToNext(e, "#gList"));
 function commitGrocery(t, tidy) {
   const el = t.closest(".g-row"); if (!el) return;
   const g = S.groceries.find(x => x.id === el.dataset.id); if (!g) return;
@@ -453,7 +485,7 @@ function reconcile() {
   let sheetChanged = false, groceriesChanged = false;
   const same = (a, b) => a === b || (a !== "" && b !== "" && Math.abs(a - b) < 0.005);
   document.querySelectorAll("#sheet .row").forEach(el => {
-    const r = findRow(el.dataset.id), inp = el.querySelector("input.amt"); if (!r || !inp) return;
+    const r = findRow(el.dataset.id, el), inp = el.querySelector("input.amt"); if (!r || !inp) return;
     const shown = inp.value.trim() === "" ? "" : num(inp.value), have = r.v === "" ? "" : r2(num(r.v) * P().f);
     if (!same(shown, have)) { r.v = shown === "" ? "" : shown / P().f; sheetChanged = true; }
     const nm = el.querySelector("input:not(.amt)"); if (nm && nm.value !== r.n) { r.n = nm.value; sheetChanged = true; }
@@ -577,12 +609,12 @@ async function initStore() {
         else if (d.id.startsWith("stmt_")) S.statements.push({ id: d.id.slice(5), name: v.name, importedAt: v.importedAt, txns: (v.txns || []).map(r => ({ d: r[0], t: r[1], a: r[2] })) });
       }
       S.statements.sort((a, b) => a.importedAt - b.importedAt);
-      loaded = true; if (dirty.sheet) save("sheet", 0); if (dirty.groceries) save("groceries", 0);
+      fixIds(); loaded = true; save("sheet", 0); save("groceries", 0);
       setStatus(true, "Saved privately to your account"); return;
     } catch (e) { mode = "local"; }
   }
   try { const v = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); if (v.sheet && !dirty.sheet) S.sheet = { ...DEFAULT_SHEET(), ...v.sheet }; S.chat = v.chat || []; S.statements = v.statements || []; const local = S.groceries, saved = Array.isArray(v.groceries) ? v.groceries : []; S.groceries = saved.concat(local.filter(g => !saved.some(x => x.id === g.id))); } catch (e) {}
-  loaded = true; if (dirty.sheet || dirty.groceries) save("x", 0);
+  fixIds(); loaded = true; save("x", 0);
   setStatus(false, "Saved in this browser only");
 }
 function save(key, delay = 500) {
