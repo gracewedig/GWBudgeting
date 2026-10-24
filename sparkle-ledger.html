@@ -153,7 +153,53 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .send { flex: none; height: 40px; border-radius: 999px; border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 800; padding: 0 16px; cursor: pointer; }
 .send:disabled { opacity: .5; cursor: default; }
 .chat.dragging { outline: 2px dashed var(--accent); outline-offset: -8px; }
-@media (prefers-reduced-motion: reduce) { .brand h1, .row.flash input.amt { animation: none; } }
+/* ---- tabs ---- */
+.left { display: grid; gap: 10px; min-width: 0; }
+.tabs { display: flex; gap: 6px; }
+.tabs button { border: 1px solid var(--line); background: var(--surface); padding: 7px 18px; border-radius: 999px; font-weight: 800; font-size: 14px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 14px -4px var(--accent); }
+.tabs button:hover:not([aria-selected="true"]) { background: var(--surface-2); }
+
+/* ---- groceries ---- */
+.g-head { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: 20px 20px 0 0; overflow: hidden; border-bottom: 1px solid var(--line); }
+.g-body { padding: 8px 18px 18px; }
+.meter { height: 10px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 10px 0 4px; }
+.meter span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s; }
+.meter.over span { background: var(--bad); }
+.g-status { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.g-status b { color: var(--ink); }
+.g-status .over { color: var(--bad); font-weight: 800; }
+.g-cols, .g-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 58px 84px 76px 26px; gap: 6px; align-items: center; }
+.g-cols { margin-top: 14px; padding-bottom: 4px; border-bottom: 1.5px solid var(--ink); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 800; }
+.g-cols span:nth-child(n+3) { text-align: right; }
+.g-row { padding: 4px 0; border-bottom: 1px solid var(--line); }
+.g-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); margin: 0 auto; display: block; cursor: pointer; }
+.g-row input.t { width: 100%; min-width: 0; border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 5px 8px; }
+.g-row input.t:hover { border-color: var(--line); }
+.g-row input.t:focus { border-color: var(--accent); background: var(--bg); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.g-row input.q, .g-row input.p { font-family: var(--f-num); text-align: right; background: var(--bg); border-color: var(--line); }
+.g-row .lt { text-align: right; font-family: var(--f-num); font-variant-numeric: tabular-nums; font-size: 14px; }
+.g-row.done input.n { text-decoration: line-through; color: var(--muted); }
+.g-row.done .lt { color: var(--muted); }
+.g-row.flash input.p { animation: flash 1.2s ease-out; }
+.g-row .x { border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 6px; height: 26px; }
+.g-row .x:hover { color: var(--bad); background: var(--surface-2); }
+.g-add { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.g-add input { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 7px 10px; min-width: 0; }
+.g-add input#gName { flex: 1 1 160px; }
+.g-add input#gPrice { flex: 0 1 100px; font-family: var(--f-num); text-align: right; }
+.g-add button { border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 800; border-radius: 999px; padding: 7px 16px; cursor: pointer; }
+.g-total { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 8px 0 0; font-weight: 800; font-size: 16px; border-top: 3px double var(--ink); margin-top: 12px; }
+.g-total .money { padding-right: 32px; }
+.g-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; align-items: center; justify-content: space-between; }
+.btn-soft { border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 999px; padding: 5px 14px; font-weight: 800; font-size: 13px; cursor: pointer; }
+.btn-soft:hover { background: var(--surface-2); }
+.g-empty { color: var(--muted); text-align: center; padding: 18px 8px; font-size: 14px; }
+@media (max-width: 480px) {
+  .g-cols, .g-row { grid-template-columns: 26px minmax(0, 1fr) 44px 70px 24px; }
+  .g-cols span:nth-child(5), .g-row .lt { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .brand h1, .row.flash input.amt, .g-row.flash input.p { animation: none; } }
 </style>
 
 <canvas id="sparkles" aria-hidden="true"></canvas>
@@ -171,8 +217,43 @@ header { display: flex; align-items: center; justify-content: space-between; gap
   </header>
 
   <div class="cols">
+    <div class="left">
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" id="tab-budget" aria-controls="panel-budget" aria-selected="true" type="button">Budget</button>
+      <button role="tab" id="tab-groceries" aria-controls="panel-groceries" aria-selected="false" type="button">Groceries</button>
+    </nav>
+
+    <!-- GROCERIES -->
+    <section class="card" id="panel-groceries" role="tabpanel" aria-labelledby="tab-groceries" hidden>
+      <div class="g-head">
+        <div class="tile"><div class="label">List total</div><div class="value" id="gTotal">$0</div><div class="yr" id="gCount">0 items</div></div>
+        <div class="tile"><div class="label">In the cart</div><div class="value" id="gCart">$0</div><div class="yr" id="gCartN">0 checked off</div></div>
+        <div class="tile hero"><div class="label">Grocery budget</div><div class="value" id="gBudget">$0</div><div class="yr">per month, from Budget</div></div>
+      </div>
+      <div class="g-body">
+        <div class="meter" id="gMeter" role="img" aria-label="List total compared with grocery budget"><span style="width:0%"></span></div>
+        <div class="g-status" id="gStatus"></div>
+        <div class="g-cols"><span></span><span>Item</span><span>Qty</span><span>Price</span><span>Total</span><span></span></div>
+        <div id="gList"></div>
+        <form class="g-add" id="gForm">
+          <input id="gName" placeholder="Add an item, like eggs" aria-label="Item name">
+          <input id="gPrice" inputmode="decimal" placeholder="$ price" aria-label="Price">
+          <button type="submit">Add</button>
+        </form>
+        <div class="g-total"><span>Grocery list total</span><span class="money" id="gTotal2">$0.00</span></div>
+        <div class="g-actions">
+          <button type="button" class="btn-soft" id="gUse">Use this total as my grocery budget</button>
+          <span style="display:flex;gap:14px;flex-wrap:wrap">
+            <button type="button" class="linkish" id="gUncheck">Uncheck all</button>
+            <button type="button" class="linkish" id="gClearDone">Remove checked items</button>
+          </span>
+        </div>
+        <p class="hint" style="margin-top:10px">Tick items off as you shop. Ask Claude in the chat to build a list for you, like “make me a week of cheap dinners”.</p>
+      </div>
+    </section>
+
     <!-- PRO FORMA -->
-    <section class="card" aria-label="Monthly pro forma">
+    <section class="card" id="panel-budget" role="tabpanel" aria-labelledby="tab-budget" aria-label="Monthly pro forma">
       <div class="summary">
         <div class="tile"><div class="label">Total income</div><div class="value" id="tIncome">$0</div><div class="yr" id="tIncomeY">$0 / yr</div></div>
         <div class="tile"><div class="label">Total spending</div><div class="value" id="tSpend">$0</div><div class="yr" id="tSpendY">$0 / yr</div></div>
@@ -181,6 +262,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
       </div>
       <div class="sheet" id="sheet"></div>
     </section>
+    </div>
 
     <!-- CHAT -->
     <section class="card chat" id="chat" aria-label="Chat with Claude">
@@ -226,7 +308,7 @@ const DEFAULT_SHEET = () => ({
   travel: [row("Travel fund")],
   savingsNow: "",
 });
-const S = { sheet: DEFAULT_SHEET(), chat: [], statements: [] };
+const S = { sheet: DEFAULT_SHEET(), chat: [], statements: [], groceries: [] };
 
 function totals() {
   const sum = k => (S.sheet[k] || []).reduce((a, r) => a + num(r.v), 0);
@@ -293,7 +375,76 @@ function recalc() {
   $("#tSave").classList.toggle("neg", t.save < 0);
   const now = num(S.sheet.savingsNow);
   for (const m of [3, 6, 12]) { const el = $("#p" + m); if (el) el.textContent = fmt(now + t.save * m); }
+  recalcGroceries();
 }
+
+// ---------- tabs ----------
+const TABS = ["budget", "groceries"];
+function showTab(name) {
+  for (const t of TABS) { $("#tab-" + t).setAttribute("aria-selected", String(t === name)); $("#panel-" + t).hidden = t !== name; }
+  try { localStorage.setItem(LS_KEY + "-tab", name); } catch (e) {}
+}
+for (const t of TABS) $("#tab-" + t).addEventListener("click", () => showTab(t));
+
+// ---------- groceries ----------
+const groceryLine = () => S.sheet.bills.find(r => /grocer/i.test(r.n));
+const gLineTotal = g => num(g.p) * (g.q === "" ? 1 : num(g.q));
+function renderGroceries() {
+  const box = $("#gList"); box.innerHTML = "";
+  if (!S.groceries.length) box.innerHTML = `<p class="g-empty">Your list is empty. Add items below, or ask Claude to make you a list.</p>`;
+  for (const g of S.groceries) {
+    const el = document.createElement("div"); el.className = "g-row" + (g.done ? " done" : ""); el.dataset.id = g.id;
+    el.innerHTML = `<input type="checkbox" id="gc-${g.id}" aria-label="Got ${esc(g.n)}" ${g.done ? "checked" : ""}>
+      <input class="t n" id="gn-${g.id}" aria-label="Item" value="${esc(g.n)}" placeholder="Item">
+      <input class="t q" id="gq-${g.id}" inputmode="decimal" aria-label="Quantity" value="${esc(g.q)}" placeholder="1">
+      <input class="t p" id="gp-${g.id}" inputmode="decimal" aria-label="Price each" value="${g.p === "" ? "" : esc(g.p)}" placeholder="$0">
+      <span class="lt" id="gl-${g.id}"></span>
+      <button type="button" class="x" aria-label="Remove ${esc(g.n)}" title="Remove">✕</button>`;
+    const [cb, n, q, p] = el.querySelectorAll("input");
+    cb.addEventListener("change", () => { g.done = cb.checked; el.classList.toggle("done", g.done); save("groceries"); recalcGroceries(); });
+    n.addEventListener("input", () => { g.n = n.value; save("groceries"); });
+    q.addEventListener("input", () => { g.q = q.value.trim(); save("groceries"); recalcGroceries(); });
+    p.addEventListener("input", () => { g.p = p.value.trim(); save("groceries"); recalcGroceries(); });
+    p.addEventListener("blur", () => { if (g.p !== "") { g.p = num(g.p); p.value = g.p.toFixed(2); } });
+    el.querySelector(".x").addEventListener("click", () => { S.groceries = S.groceries.filter(x => x !== g); save("groceries"); renderGroceries(); });
+    box.append(el);
+  }
+  recalcGroceries();
+}
+function recalcGroceries() {
+  if (!$("#gTotal")) return;
+  let total = 0, cart = 0, nCart = 0;
+  for (const g of S.groceries) {
+    const lt = gLineTotal(g); total += lt; if (g.done) { cart += lt; nCart++; }
+    const el = document.getElementById("gl-" + g.id); if (el) el.textContent = g.p === "" ? "" : fmt2(lt);
+  }
+  const line = groceryLine(), budget = line ? num(line.v) : 0;
+  $("#gTotal").textContent = fmt2(total); $("#gTotal2").textContent = fmt2(total);
+  $("#gCount").textContent = `${S.groceries.length} item${S.groceries.length === 1 ? "" : "s"}`;
+  $("#gCart").textContent = fmt2(cart); $("#gCartN").textContent = `${nCart} checked off`;
+  $("#gBudget").textContent = line ? fmt(budget) : "Not set";
+  const over = budget > 0 && total > budget;
+  $("#gMeter").classList.toggle("over", over);
+  $("#gMeter span").style.width = (budget > 0 ? Math.min(total / budget * 100, 100) : 0).toFixed(1) + "%";
+  $("#gStatus").innerHTML = !line ? `<span>Add a “Groceries” line on the Budget tab to compare against.</span>` :
+    !budget ? `<span>Type your monthly grocery budget on the Budget tab, or use the button below.</span>` :
+    over ? `<span class="over">${fmt2(total - budget)} over your grocery budget</span><span>${Math.round(total / budget * 100)}% of ${fmt(budget)}</span>` :
+    `<span><b>${fmt2(budget - total)}</b> left in your grocery budget</span><span>${Math.round(total / budget * 100)}% of ${fmt(budget)}</span>`;
+}
+function addGrocery(n, p, q = "") { const g = { id: uid(), n, q: q === "" || q == null ? "" : String(q), p: p === "" || p == null ? "" : num(p), done: false }; S.groceries.push(g); return g; }
+$("#gForm").addEventListener("submit", e => {
+  e.preventDefault(); const n = $("#gName").value.trim(); if (!n) { $("#gName").focus(); return; }
+  addGrocery(n, $("#gPrice").value.trim()); $("#gName").value = ""; $("#gPrice").value = "";
+  save("groceries"); renderGroceries(); $("#gName").focus();
+});
+$("#gUse").addEventListener("click", () => {
+  const total = S.groceries.reduce((a, g) => a + gLineTotal(g), 0);
+  let line = groceryLine(); if (!line) { line = row("Groceries"); S.sheet.bills.push(line); }
+  line.v = Math.round(total * 100) / 100; save("sheet"); renderSheet();
+  document.querySelector(`.row[data-id="${line.id}"]`)?.classList.add("flash");
+});
+$("#gUncheck").addEventListener("click", () => { S.groceries.forEach(g => g.done = false); save("groceries"); renderGroceries(); });
+$("#gClearDone").addEventListener("click", () => { S.groceries = S.groceries.filter(g => !g.done); save("groceries"); renderGroceries(); });
 
 // ---------- storage: private to this person's account, else this browser ----------
 const LS_KEY = "sparkle-ledger-v3";
@@ -309,19 +460,20 @@ async function initStore() {
         const v = d.data(); if (!v) continue;
         if (d.id === "proforma" && v.sheet) S.sheet = { ...DEFAULT_SHEET(), ...v.sheet };
         else if (d.id === "chat2") S.chat = v.msgs || [];
+        else if (d.id === "groceries") S.groceries = v.items || [];
         else if (d.id.startsWith("stmt_")) S.statements.push({ id: d.id.slice(5), name: v.name, importedAt: v.importedAt, txns: (v.txns || []).map(r => ({ d: r[0], t: r[1], a: r[2] })) });
       }
       S.statements.sort((a, b) => a.importedAt - b.importedAt);
       setStatus(true, "Saved privately to your account"); return;
     } catch (e) { mode = "local"; }
   }
-  try { const v = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); if (v.sheet) S.sheet = { ...DEFAULT_SHEET(), ...v.sheet }; S.chat = v.chat || []; S.statements = v.statements || []; } catch (e) {}
+  try { const v = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); if (v.sheet) S.sheet = { ...DEFAULT_SHEET(), ...v.sheet }; S.chat = v.chat || []; S.statements = v.statements || []; S.groceries = v.groceries || []; } catch (e) {}
   setStatus(false, "Saved in this browser only");
 }
 function save(key, delay = 500) {
   if (mode !== "db") {
     clearTimeout(timers.l);
-    timers.l = setTimeout(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ sheet: S.sheet, chat: S.chat.slice(-60), statements: S.statements })); } catch (e) {} }, 300);
+    timers.l = setTimeout(() => { try { localStorage.setItem(LS_KEY, JSON.stringify({ sheet: S.sheet, chat: S.chat.slice(-60), statements: S.statements, groceries: S.groceries })); } catch (e) {} }, 300);
     return;
   }
   clearTimeout(timers[key]);
@@ -329,6 +481,7 @@ function save(key, delay = 500) {
     let doc, data;
     if (key === "sheet") { doc = "proforma"; data = { sheet: S.sheet }; }
     else if (key === "chat") { doc = "chat2"; data = { msgs: S.chat.slice(-60) }; }
+    else if (key === "groceries") { doc = "groceries"; data = { items: S.groceries.slice(0, 500) }; }
     else { const s = S.statements.find(x => "stmt_" + x.id === key); if (!s) return; doc = key; data = { name: s.name, importedAt: s.importedAt, txns: s.txns.map(t => [t.d, t.t, t.a]) }; }
     chains[doc] = (chains[doc] || Promise.resolve()).then(() => base.doc(doc).set(data)).catch(e => console.warn("save failed", doc, e));
   }, delay);
@@ -485,7 +638,7 @@ function md(src) {
 }
 
 // ---------- chat ----------
-const SUGGESTIONS = ["Can I afford to move out for $560?", "I make $__ every 2 weeks", "How much can I spend on travel?", "Fill my budget from my statement"];
+const SUGGESTIONS = ["Can I afford to move out for $560?", "I make $__ every 2 weeks", "Make me a cheap grocery list for the week", "How much can I spend on travel?"];
 const OPEN = "[[SHEET]]", CLOSE = "[[/SHEET]]";
 const visible = t => { const k = t.indexOf("[[SHEET"); return (k >= 0 ? t.slice(0, k) : t).trimEnd(); };
 function sheetText() {
@@ -498,6 +651,8 @@ function sheetText() {
 }
 function contextBlock() {
   let out = `TODAY: ${new Date().toISOString().slice(0, 10)}\n\nTHEIR MONTHLY PRO FORMA (all amounts are per month):\n${sheetText()}`;
+  const gt = S.groceries.reduce((a, g) => a + gLineTotal(g), 0);
+  out += `\nGROCERY LIST (Groceries tab), total ${fmt2(gt)}:\n` + (S.groceries.length ? S.groceries.map(g => `  ${g.done ? "[x]" : "[ ]"} ${g.n} | qty ${g.q || 1} | ${g.p === "" ? "no price" : fmt2(num(g.p)) + " each"}`).join("\n") : "  (empty)") + "\n";
   const tx = S.statements.flatMap(s => s.txns).sort((a, b) => b.d.localeCompare(a.d));
   if (tx.length) {
     const byMonth = {};
@@ -519,7 +674,11 @@ Filling the sheet: when they tell you a number (or ask you to fill it from a sta
 ${OPEN}
 {"set":[{"section":"income","name":"Paycheck","amount":1733.33}],"savingsNow":1200}
 ${CLOSE}
-Leave the block out when nothing in the sheet should change. Never mention the block itself; just say in words what you updated.`;
+Grocery list: there is also a Groceries tab with a shopping list (shown below). To add, change or remove items, include "groceries" in the same block. Each item has name, qty and price (price EACH, in dollars). Use an existing item's exact name to change it and "remove": true to delete it. When they don't give a price, use a typical low-cost US grocery store price and say they're estimates they can edit. Example:
+${OPEN}
+{"groceries":[{"name":"Eggs (dozen)","qty":1,"price":3.49},{"name":"Bananas","remove":true}]}
+${CLOSE}
+One block can hold both "set" and "groceries". Leave the block out when nothing should change. Never mention the block itself; just say in words what you updated.`;
 
 function applySheet(json) {
   let data; try { data = JSON.parse(json); } catch (e) { return 0; }
@@ -537,7 +696,23 @@ function applySheet(json) {
   }
   if (data && data.savingsNow != null && isFinite(Number(data.savingsNow))) { S.sheet.savingsNow = Number(data.savingsNow); n++; }
   if (n) { save("sheet", 0); renderSheet(); for (const id of touched) document.querySelector(`.row[data-id="${id}"]`)?.classList.add("flash"); }
-  return n;
+  let g = 0; const gTouched = [];
+  for (const u of Array.isArray(data?.groceries) ? data.groceries : []) {
+    if (!u?.name) continue;
+    const name = String(u.name).slice(0, 80);
+    const ex = S.groceries.find(x => x.n.trim().toLowerCase() === name.trim().toLowerCase());
+    if (u.remove) { if (ex) { S.groceries = S.groceries.filter(x => x !== ex); g++; } continue; }
+    const price = u.price == null || !isFinite(Number(u.price)) ? "" : Math.round(Number(u.price) * 100) / 100;
+    const qty = u.qty == null || !isFinite(Number(u.qty)) ? "" : String(Number(u.qty));
+    if (ex) { if (price !== "") ex.p = price; if (qty !== "") ex.q = qty; gTouched.push(ex.id); }
+    else gTouched.push(addGrocery(name, price, qty).id);
+    g++;
+  }
+  if (g) {
+    save("groceries", 0); renderGroceries(); showTab("groceries");
+    for (const id of gTouched) document.querySelector(`.g-row[data-id="${id}"]`)?.classList.add("flash");
+  }
+  return n + g;
 }
 
 let abortCtl = null;
@@ -573,7 +748,7 @@ async function send(text) {
     const res = await sample(turns, { signal: abortCtl.signal, cache: false, onText: ({ text }) => { bubble.innerHTML = md(visible(text)) || "<p>…</p>"; log.scrollTop = log.scrollHeight; } });
     const a = res.text.indexOf(OPEN), b = res.text.indexOf(CLOSE);
     reply.content = visible(res.text);
-    if (a >= 0 && b > a && applySheet(res.text.slice(a + OPEN.length, b).trim())) S.chat.push({ role: "note", content: "✦ Budget updated" });
+    if (a >= 0 && b > a && applySheet(res.text.slice(a + OPEN.length, b).trim())) S.chat.push({ role: "note", content: "✦ Updated your page" });
   } catch (e) {
     if (e?.code === "not_granted" || e?.code === "sampling_disabled") reply.content = "Claude access isn't turned on for this page yet. Allow it when asked, then send your message again.";
     else if (e?.code === "rate_limited") reply.content = (e.text ? visible(e.text) + "\n\n" : "") + "_I've hit a usage limit. Try again in a little while._";
@@ -616,7 +791,8 @@ clearBtn.addEventListener("click", () => {
 })();
 
 // ---------- boot ----------
-renderSheet(); renderChat(); renderFiles();
-initStore().then(() => { renderSheet(); renderChat(); renderFiles(); });
+renderSheet(); renderGroceries(); renderChat(); renderFiles();
+try { const t = localStorage.getItem(LS_KEY + "-tab"); if (TABS.includes(t)) showTab(t); } catch (e) {}
+initStore().then(() => { renderSheet(); renderGroceries(); renderChat(); renderFiles(); });
 })();
 </script>
