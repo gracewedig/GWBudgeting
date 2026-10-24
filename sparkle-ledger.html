@@ -76,16 +76,17 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .tile .value { font-family: var(--f-num); font-variant-numeric: tabular-nums; font-size: clamp(18px, 2.6vw, 24px); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .yr { font-size: 12px; color: var(--muted); font-family: var(--f-num); }
 .tile.hero { background: var(--surface-2); }
+.tile .value small.per { font-size: 12px; color: var(--muted); margin-left: 3px; }
 .tile.hero .value { color: var(--accent); }
 .tile .value.neg { color: var(--bad); }
 
 /* ---- sheet ---- */
 .sheet { padding: 6px 18px 18px; }
 .sec { margin-top: 14px; }
-.sec-head { display: grid; grid-template-columns: minmax(0, 1fr) 112px 92px 26px; gap: 8px; align-items: baseline; padding-bottom: 4px; border-bottom: 1.5px solid var(--ink); }
+.sec-head { display: grid; grid-template-columns: minmax(0, 1fr) 96px 104px 84px 26px; gap: 8px; align-items: baseline; padding-bottom: 4px; border-bottom: 1.5px solid var(--ink); }
 .sec-head h3 { font-size: 17px; }
 .sec-head .colh { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 800; text-align: right; }
-.row { display: grid; grid-template-columns: minmax(0, 1fr) 112px 92px 26px; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 104px 84px 26px; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .row input { width: 100%; min-width: 0; border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 5px 8px; }
 .row input:hover { border-color: var(--line); }
 .row input:focus { border-color: var(--accent); background: var(--bg); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -96,7 +97,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .row .x:hover { color: var(--bad); background: var(--surface-2); }
 .row.flash input.amt { animation: flash 1.2s ease-out; }
 @keyframes flash { 0% { background: var(--accent-soft); } 100% { background: var(--bg); } }
-.subtotal { display: grid; grid-template-columns: minmax(0, 1fr) 112px 92px 26px; gap: 8px; padding: 6px 0 0; font-weight: 800; }
+.subtotal { display: grid; grid-template-columns: minmax(0, 1fr) 96px 104px 84px 26px; gap: 8px; padding: 6px 0 0; font-weight: 800; }
 .subtotal .money { text-align: right; padding-right: 8px; }
 .subtotal .yr { text-align: right; font-family: var(--f-num); color: var(--muted); font-weight: 600; font-size: 13.5px; }
 .add { margin-top: 6px; border: 0; background: none; color: var(--accent); font-weight: 800; cursor: pointer; padding: 2px 0; font-size: 13.5px; }
@@ -115,8 +116,15 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .sheet-foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
 .linkish { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12.5px; padding: 0; text-decoration: underline; }
 @media (max-width: 480px) {
-  .sec-head, .row, .subtotal { grid-template-columns: minmax(0, 1fr) 96px 26px; }
-  .sec-head .colh.yh, .row .yr, .subtotal .yr { display: none; }
+  .sec-head, .row, .subtotal { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 26px; row-gap: 4px; }
+  .sec-head { grid-template-areas: "a a ." "b c ."; }
+  .row, .subtotal { grid-template-areas: "a a x" "b c ."; }
+  .sec-head > :nth-child(1), .row > :nth-child(1), .subtotal > :nth-child(1) { grid-area: a; }
+  .sec-head > :nth-child(2), .row > :nth-child(2), .subtotal > :nth-child(2) { grid-area: b; }
+  .sec-head > :nth-child(3), .row > :nth-child(3), .subtotal > :nth-child(3) { grid-area: c; }
+  .row > :nth-child(5) { grid-area: x; }
+  .sec-head .colh.yh, .row .yr, .subtotal .yr, .sec-head > :nth-child(5), .subtotal > :nth-child(5) { display: none; }
+  .row input.nm { font-weight: 700; }
 }
 
 /* ---- chat ---- */
@@ -163,6 +171,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .period { margin-left: auto; display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
 .tabs .period button { border: 0; background: transparent; padding: 4px 12px; font-size: 13px; box-shadow: none; }
 .tabs .period button[aria-pressed="true"] { background: var(--surface-2); color: var(--accent); }
+.period .plabel { font-size: 12px; color: var(--muted); align-self: center; padding: 0 4px 0 8px; font-weight: 700; }
 
 /* ---- groceries ---- */
 .g-head { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border-radius: 20px 20px 0 0; overflow: hidden; border-bottom: 1px solid var(--line); }
@@ -173,7 +182,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .g-status { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .g-status b { color: var(--ink); }
 .g-status .over { color: var(--bad); font-weight: 800; }
-.g-cols, .g-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 58px 84px 76px 26px; gap: 6px; align-items: center; }
+.g-cols, .g-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 58px 84px 118px 26px; gap: 6px; align-items: center; }
 .g-cols { margin-top: 14px; padding-bottom: 4px; border-bottom: 1.5px solid var(--ink); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 800; }
 .g-cols span:nth-child(n+3) { text-align: right; }
 .g-row { padding: 4px 0; border-bottom: 1px solid var(--line); }
@@ -182,6 +191,8 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .g-row input.t:hover { border-color: var(--line); }
 .g-row input.t:focus { border-color: var(--accent); background: var(--bg); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
 .g-row input.q, .g-row input.p { font-family: var(--f-num); text-align: right; background: var(--bg); border-color: var(--line); }
+.g-row .lt small { display: block; font-size: 11.5px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.g-month { border-top: 0 !important; margin-top: 0 !important; font-size: 14px !important; color: var(--muted); font-weight: 700 !important; }
 .g-row .lt { text-align: right; font-family: var(--f-num); font-variant-numeric: tabular-nums; font-size: 14px; }
 .g-row.done input.n { text-decoration: line-through; color: var(--muted); }
 .g-row.done .lt { color: var(--muted); }
@@ -234,32 +245,34 @@ header { display: flex; align-items: center; justify-content: space-between; gap
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button role="tab" id="tab-budget" aria-controls="panel-budget" aria-selected="true" type="button">Budget</button>
       <button role="tab" id="tab-groceries" aria-controls="panel-groceries" aria-selected="false" type="button">Groceries</button>
-      <span class="period" role="group" aria-label="Show amounts">
-        <button type="button" id="perWeek" aria-pressed="false">Weekly</button>
-        <button type="button" id="perMonth" aria-pressed="true">Monthly</button>
+      <span class="period" role="group" aria-label="Weeks in a month">
+        <span class="plabel">1 month =</span>
+        <button type="button" id="wpm433" aria-pressed="true">4.33 weeks</button>
+        <button type="button" id="wpm4" aria-pressed="false">4 weeks</button>
       </span>
     </nav>
 
     <!-- GROCERIES -->
     <section class="card" id="panel-groceries" role="tabpanel" aria-labelledby="tab-groceries" hidden>
       <div class="g-head">
-        <div class="tile"><div class="label">List total</div><div class="value" id="gTotal">$0</div><div class="yr" id="gCount">0 items</div></div>
+        <div class="tile"><div class="label">This week’s list</div><div class="value" id="gTotal">$0</div><div class="yr" id="gCount">0 items</div></div>
         <div class="tile"><div class="label">In the cart</div><div class="value" id="gCart">$0</div><div class="yr" id="gCartN">0 checked off</div></div>
         <div class="tile hero"><div class="label">Grocery budget</div><div class="value" id="gBudget">$0</div><div class="yr" id="gBudgetSub">per month, from Budget</div></div>
       </div>
       <div class="g-body">
         <div class="meter" id="gMeter" role="img" aria-label="List total compared with grocery budget"><span style="width:0%"></span></div>
         <div class="g-status" id="gStatus"></div>
-        <div class="g-cols"><span></span><span>Item</span><span>Qty</span><span>Price</span><span>Total</span><span></span></div>
+        <div class="g-cols"><span></span><span>Item</span><span>Qty</span><span>Price</span><span>Week / month</span><span></span></div>
         <div id="gList"></div>
         <form class="g-add" id="gForm">
           <input id="gName" placeholder="Add an item, like eggs" aria-label="Item name">
           <input id="gPrice" inputmode="decimal" placeholder="$ price" aria-label="Price">
           <button type="button" id="gAddBtn">Add</button>
         </form>
-        <div class="g-total"><span>Grocery list total</span><span class="money" id="gTotal2">$0.00</span></div>
+        <div class="g-total"><span>Weekly list total</span><span class="money" id="gTotal2">$0.00</span></div>
+        <div class="g-total g-month"><span id="gMonthLbl">Per month</span><span class="money" id="gMonth">$0.00</span></div>
         <div class="g-actions">
-          <button type="button" class="btn-soft" id="gUse">Use this total as my grocery budget</button>
+          <button type="button" class="btn-soft" id="gUse">Use this list as my grocery budget</button>
           <span style="display:flex;gap:14px;flex-wrap:wrap">
             <button type="button" class="linkish" id="gUncheck">Uncheck all</button>
             <button type="button" class="linkish" id="gClearDone">Remove checked items</button>
@@ -331,16 +344,20 @@ const DEFAULT_SHEET = () => ({
   savingsNow: "",
 });
 const S = { sheet: DEFAULT_SHEET(), chat: [], statements: [], groceries: [] };
-// Amounts are stored monthly; the weekly view converts on the way in and out.
-const P = () => S.sheet.period === "week" ? { f: 12 / 52, word: "week", cap: "Weekly" } : { f: 1, word: "month", cap: "Monthly" };
+// Amounts are stored monthly. Weekly = monthly ÷ weeks-per-month (52 ÷ 12 ≈ 4.33, or an even 4 if chosen).
+const WPM = () => S.sheet.wpm === 4 ? 4 : 52 / 12;
+const wpmLabel = () => S.sheet.wpm === 4 ? "4" : "4.33";
 const r2 = x => Math.round(x * 100) / 100;
 function renderPeriod() {
-  const wk = S.sheet.period === "week";
-  $("#perWeek").setAttribute("aria-pressed", String(wk)); $("#perMonth").setAttribute("aria-pressed", String(!wk));
+  const four = S.sheet.wpm === 4;
+  $("#wpm433").setAttribute("aria-pressed", String(!four)); $("#wpm4").setAttribute("aria-pressed", String(four));
 }
-for (const [id, val] of [["#perWeek", "week"], ["#perMonth", "month"]]) $(id).addEventListener("click", () => {
-  if ((S.sheet.period || "month") === val) return;
-  S.sheet.period = val; save("sheet"); renderPeriod(); renderSheet();
+for (const [id, val] of [["#wpm433", null], ["#wpm4", 4]]) $(id).addEventListener("click", () => {
+  if ((S.sheet.wpm === 4 ? 4 : null) === val) return;
+  S.sheet.wpm = val;
+  // lines typed as weekly keep their weekly number; their monthly amount follows the new count
+  for (const sec of SECTIONS) for (const r of S.sheet[sec.key]) if (r.src === "w" && r.v !== "") r.v = num(r.wk) * WPM();
+  save("sheet"); renderPeriod(); renderSheet(); renderGroceries();
 });
 
 function totals() {
@@ -353,7 +370,7 @@ function renderSheet() {
   const box = $("#sheet"); box.innerHTML = "";
   for (const sec of SECTIONS) {
     const el = document.createElement("div"); el.className = "sec";
-    el.innerHTML = `<div class="sec-head"><h3>${sec.title}</h3><span class="colh">${P().cap}</span><span class="colh yh">Yearly</span><span></span></div>`;
+    el.innerHTML = `<div class="sec-head"><h3>${sec.title}</h3><span class="colh wh">Weekly</span><span class="colh mh">Monthly</span><span class="colh yh">Yearly</span><span></span></div>`;
     for (const r of S.sheet[sec.key]) el.append(rowEl(sec, r));
     const sub = document.createElement("div"); sub.className = "subtotal"; sub.id = "sub-" + sec.key;
     el.append(sub);
@@ -367,29 +384,32 @@ function renderSheet() {
   const proj = document.createElement("div"); proj.className = "proj";
   proj.innerHTML = `<div class="proj-top"><label for="savingsNow">Savings I have now</label><input id="savingsNow" inputmode="decimal" placeholder="0" value="${esc(S.sheet.savingsNow)}"></div>
     <div class="proj-grid"><div><span>In 3 months</span><b id="p3">$0</b></div><div><span>In 6 months</span><b id="p6">$0</b></div><div><span>In 12 months</span><b id="p12">$0</b></div></div>
-    <p class="hint">Savings = income − spending − travel. Type in any white box and everything updates.</p>`;
+    <p class="hint">Savings = income − spending − travel. Type a weekly or a monthly amount and the other fills in by itself (weekly × ${wpmLabel()} = monthly${S.sheet.wpm === 4 ? "" : ", because 52 weeks ÷ 12 months = 4.33"}).</p>`;
   box.append(proj);
   proj.querySelector("input").addEventListener("input", e => { S.sheet.savingsNow = e.target.value; save("sheet"); recalc(); });
   const foot = document.createElement("div"); foot.className = "sheet-foot";
-  foot.innerHTML = `<span class="hint">${P().word === "week" ? "Paid every 2 weeks? Weekly = paycheck ÷ 2." : "Paid every 2 weeks? Monthly ≈ paycheck × 2.17."}</span>`;
+  foot.innerHTML = `<span class="hint">Paid every 2 weeks? Type half your paycheck in the Weekly box.</span>`;
   const reset = document.createElement("button"); reset.type = "button"; reset.className = "linkish"; reset.textContent = "Clear all numbers";
   reset.addEventListener("click", () => {
     if (!reset.dataset.armed) { reset.dataset.armed = "1"; reset.textContent = "Tap again to clear"; setTimeout(() => { delete reset.dataset.armed; reset.textContent = "Clear all numbers"; }, 3000); return; }
-    S.sheet = { ...DEFAULT_SHEET(), period: S.sheet.period }; save("sheet"); renderSheet();
+    S.sheet = { ...DEFAULT_SHEET(), wpm: S.sheet.wpm }; save("sheet"); renderSheet();
   });
   foot.append(reset); box.append(foot);
   recalc();
 }
 function rowEl(sec, r) {
   const el = document.createElement("div"); el.className = "row"; el.dataset.id = r.id;
-  el.innerHTML = `<input id="n-${r.id}" aria-label="Line name" placeholder="Name" value="${esc(r.n)}">
-    <input id="v-${r.id}" class="amt" inputmode="decimal" aria-label="${esc(r.n || "Amount")} per ${P().word}" placeholder="$0" value="${r.v === "" ? "" : esc(r2(num(r.v) * P().f))}">
+  el.innerHTML = `<input id="n-${r.id}" class="nm" aria-label="Line name" placeholder="Name" value="${esc(r.n)}">
+    <input id="w-${r.id}" class="amt w" inputmode="decimal" aria-label="${esc(r.n || "Amount")} per week" placeholder="$0 / wk" value="${r.v === "" ? "" : esc(r2(num(r.v) / WPM()))}">
+    <input id="v-${r.id}" class="amt m" inputmode="decimal" aria-label="${esc(r.n || "Amount")} per month" placeholder="$0 / mo" value="${r.v === "" ? "" : esc(r2(num(r.v)))}">
     <span class="yr" id="y-${r.id}"></span>
     <button type="button" class="x" aria-label="Remove ${esc(r.n)}" title="Remove">✕</button>`;
-  const [nIn, vIn] = el.querySelectorAll("input");
+  const [nIn, wIn, mIn] = el.querySelectorAll("input");
   nIn.addEventListener("input", () => { r.n = nIn.value; save("sheet"); });
-  vIn.addEventListener("input", () => { r.v = vIn.value.trim() === "" ? "" : num(vIn.value) / P().f; save("sheet"); recalc(); });
-  vIn.addEventListener("blur", () => { if (r.v !== "") vIn.value = r2(num(r.v) * P().f); });
+  wIn.addEventListener("input", () => { r.src = "w"; r.wk = num(wIn.value); r.v = wIn.value.trim() === "" ? "" : num(wIn.value) * WPM(); mIn.value = r.v === "" ? "" : r2(r.v); save("sheet"); recalc(); });
+  mIn.addEventListener("input", () => { delete r.src; delete r.wk; r.v = mIn.value.trim() === "" ? "" : num(mIn.value); wIn.value = r.v === "" ? "" : r2(r.v / WPM()); save("sheet"); recalc(); });
+  wIn.addEventListener("blur", () => { if (r.v !== "") wIn.value = r2(num(r.v) / WPM()); });
+  mIn.addEventListener("blur", () => { if (r.v !== "") mIn.value = r2(num(r.v)); });
   el.querySelector(".x").addEventListener("click", () => { S.sheet[sec.key] = S.sheet[sec.key].filter(x => x !== r); save("sheet"); renderSheet(); });
   return el;
 }
@@ -399,11 +419,11 @@ function recalc() {
     for (const r of S.sheet[sec.key]) { const y = document.getElementById("y-" + r.id); if (y) y.textContent = r.v === "" ? "" : fmt(num(r.v) * 12); }
     const sub = document.getElementById("sub-" + sec.key);
     const v = S.sheet[sec.key].reduce((a, r) => a + num(r.v), 0);
-    if (sub) sub.innerHTML = `<span>Total ${sec.title.toLowerCase()}</span><span class="money">${fmt(v * P().f)}</span><span class="yr">${fmt(v * 12)}</span><span></span>`;
+    if (sub) sub.innerHTML = `<span>Total ${sec.title.toLowerCase()}</span><span class="money">${fmt(v / WPM())}</span><span class="money">${fmt(v)}</span><span class="yr">${fmt(v * 12)}</span><span></span>`;
   }
   const b = $("#bottom");
-  if (b) { b.classList.toggle("neg", t.save < 0); b.innerHTML = `<span>${t.save < 0 ? "Short each " : "Savings each "}${P().word}</span><span class="money">${fmt(t.save * P().f)}</span><span class="yr">${fmt(t.save * 12)}</span><span></span>`; }
-  const set = (id, v) => { $("#" + id).textContent = fmt(v * P().f); $("#" + id + "Y").textContent = fmt(v * 12) + " / yr"; };
+  if (b) { b.classList.toggle("neg", t.save < 0); b.innerHTML = `<span>${t.save < 0 ? "Short (spending more than you make)" : "Savings"}</span><span class="money">${fmt(t.save / WPM())}</span><span class="money">${fmt(t.save)}</span><span class="yr">${fmt(t.save * 12)}</span><span></span>`; }
+  const set = (id, v) => { $("#" + id).innerHTML = `${fmt(v)}<small class="per">/mo</small>`; $("#" + id + "Y").textContent = fmt(v / WPM()) + " / wk · " + fmt(v * 12) + " / yr"; };
   set("tIncome", t.income); set("tSpend", t.spend); set("tTravel", t.travel); set("tSave", t.save);
   $("#tSave").classList.toggle("neg", t.save < 0);
   const now = num(S.sheet.savingsNow);
@@ -450,19 +470,21 @@ function recalcGroceries() {
   let total = 0, cart = 0, nCart = 0;
   for (const g of S.groceries) {
     const lt = gLineTotal(g); total += lt; if (g.done) { cart += lt; nCart++; }
-    const el = document.getElementById("gl-" + g.id); if (el) el.textContent = g.p === "" ? "" : fmt2(lt);
+    const el = document.getElementById("gl-" + g.id);
+    if (el) el.innerHTML = g.p === "" ? "" : `${fmt2(lt)}<small>${fmt2(lt * WPM())}/mo · ${+((g.q === "" ? 1 : num(g.q)) * WPM()).toFixed(1)} a month</small>`;
   }
-  const line = groceryLine(), budget = line ? r2(num(line.v) * P().f) : 0;
-  $("#gBudgetSub").textContent = `per ${P().word}, from Budget`;
+  const line = groceryLine(), budget = line ? r2(num(line.v) / WPM()) : 0;
+  $("#gBudgetSub").textContent = line && num(line.v) ? `per week · ${fmt(num(line.v))} / mo` : "per week, from Budget";
   $("#gTotal").textContent = fmt2(total); $("#gTotal2").textContent = fmt2(total);
-  $("#gCount").textContent = `${S.groceries.length} item${S.groceries.length === 1 ? "" : "s"}`;
+  $("#gMonth").textContent = fmt2(total * WPM()); $("#gMonthLbl").textContent = `Per month (× ${wpmLabel()} weeks)`;
+  $("#gCount").textContent = `${S.groceries.length} item${S.groceries.length === 1 ? "" : "s"} · ${fmt2(total * WPM())} / mo`;
   $("#gCart").textContent = fmt2(cart); $("#gCartN").textContent = `${nCart} checked off`;
   $("#gBudget").textContent = line ? fmt(budget) : "Not set";
   const over = budget > 0 && total > budget;
   $("#gMeter").classList.toggle("over", over);
   $("#gMeter span").style.width = (budget > 0 ? Math.min(total / budget * 100, 100) : 0).toFixed(1) + "%";
   $("#gStatus").innerHTML = !line ? `<span>Add a “Groceries” line on the Budget tab to compare against.</span>` :
-    !budget ? `<span>Type your monthly grocery budget on the Budget tab, or use the button below.</span>` :
+    !budget ? `<span>Type your grocery budget on the Budget tab, or use the button below.</span>` :
     over ? `<span class="over">${fmt2(total - budget)} over your grocery budget</span><span>${Math.round(total / budget * 100)}% of ${fmt(budget)}</span>` :
     `<span><b>${fmt2(budget - total)}</b> left in your grocery budget</span><span>${Math.round(total / budget * 100)}% of ${fmt(budget)}</span>`;
 }
@@ -482,7 +504,7 @@ $("#gForm").addEventListener("submit", e => {
 $("#gUse").addEventListener("click", () => {
   const total = S.groceries.reduce((a, g) => a + gLineTotal(g), 0);
   let line = groceryLine(); if (!line) { line = row("Groceries"); S.sheet.bills.push(line); }
-  line.v = total / P().f; save("sheet"); renderSheet();
+  line.v = total * WPM(); save("sheet"); renderSheet();
   document.querySelector(`.row[data-id="${line.id}"]`)?.classList.add("flash");
 });
 $("#gUncheck").addEventListener("click", () => { S.groceries.forEach(g => g.done = false); save("groceries"); renderGroceries(); });
@@ -689,15 +711,15 @@ function sheetText() {
   for (const sec of SECTIONS) s += `${sec.title} (section "${sec.key}"): ` + (S.sheet[sec.key].map(r => `${r.n || "(unnamed)"} = ${r.v === "" ? "blank" : fmt2(num(r.v))}`).join("; ") || "empty") + "\n";
   s += `Savings they have now: ${S.sheet.savingsNow === "" ? "blank" : fmt2(num(S.sheet.savingsNow))}\n`;
   s += `TOTALS per month: income ${fmt2(t.income)}, spending ${fmt2(t.spend)} (bills ${fmt2(t.bills)} + school ${fmt2(t.school)}), travel ${fmt2(t.travel)}, savings ${fmt2(t.save)}.\n`;
-  const w = 12 / 52;
-  s += `WEEKLY equivalents: income ${fmt2(t.income * w)}, spending ${fmt2(t.spend * w)}, travel ${fmt2(t.travel * w)}, savings ${fmt2(t.save * w)}.\n`;
-  s += `The page is currently showing ${P().cap.toUpperCase()} amounts, so talk in ${P().word}ly numbers unless they ask otherwise.\n`;
+  const w = WPM();
+  s += `The page counts 1 month = ${wpmLabel()} weeks and shows Weekly, Monthly and Yearly columns side by side.\n`;
+  s += `WEEKLY equivalents: income ${fmt2(t.income / w)}, spending ${fmt2(t.spend / w)}, travel ${fmt2(t.travel / w)}, savings ${fmt2(t.save / w)}.\n`;
   return s;
 }
 function contextBlock() {
   let out = `TODAY: ${new Date().toISOString().slice(0, 10)}\n\nTHEIR MONTHLY PRO FORMA (all amounts are per month):\n${sheetText()}`;
   const gt = S.groceries.reduce((a, g) => a + gLineTotal(g), 0);
-  out += `\nGROCERY LIST (Groceries tab), total ${fmt2(gt)}:\n` + (S.groceries.length ? S.groceries.map(g => `  ${g.done ? "[x]" : "[ ]"} ${g.n} | qty ${g.q || 1} | ${g.p === "" ? "no price" : fmt2(num(g.p)) + " each"}`).join("\n") : "  (empty)") + "\n";
+  out += `\nGROCERY LIST (Groceries tab, a ONE-WEEK shopping list), weekly total ${fmt2(gt)}, about ${fmt2(gt * WPM())} per month:\n` + (S.groceries.length ? S.groceries.map(g => `  ${g.done ? "[x]" : "[ ]"} ${g.n} | qty ${g.q || 1} | ${g.p === "" ? "no price" : fmt2(num(g.p)) + " each"}`).join("\n") : "  (empty)") + "\n";
   const tx = S.statements.flatMap(s => s.txns).sort((a, b) => b.d.localeCompare(a.d));
   if (tx.length) {
     const byMonth = {};
@@ -715,7 +737,7 @@ const INSTRUCTIONS =
 `You are the money buddy inside "Sparkle Ledger", a private budgeting page for a college student who's deciding whether they can afford to move out to a place that costs $560/month, and who also pays for school subscriptions.
 Next to this chat is their monthly pro forma: sections Income, Bills & living, School subscriptions and Travel. Savings = income − spending − travel. You can see every cell below.
 How to talk: warm, encouraging, plain words, short answers. Lead with the answer, then the numbers. Ask one quick question when you need a number. Use small Markdown tables (| pipes |) when comparing. Only use numbers they've told you, that are in the sheet, or that are in their statements; never invent figures. You're not a licensed financial advisor, but give real, practical help.
-Filling the sheet: when they tell you a number (or ask you to fill it from a statement), put it in the sheet by ending your reply with this block. Amounts in the block are ALWAYS MONTHLY, even when the page shows weekly (weekly × 52 ÷ 12 = monthly; the page converts for display). Convert: every 2 weeks × 26 ÷ 12, weekly × 52 ÷ 12, yearly ÷ 12). Use an existing line's exact name to change it, a new name to add a line, and "amount": null to delete a line. Sections: income, bills, school, travel. "savingsNow" is optional.
+Filling the sheet: when they tell you a number (or ask you to fill it from a statement), put it in the sheet by ending your reply with this block. Amounts in the block are ALWAYS MONTHLY; the page fills in the weekly and yearly columns itself. Convert with the page's weeks-per-month (in the data): weekly × that number, every 2 weeks × that number ÷ 2, yearly ÷ 12. Use an existing line's exact name to change it, a new name to add a line, and "amount": null to delete a line. Sections: income, bills, school, travel. "savingsNow" is optional.
 ${OPEN}
 {"set":[{"section":"income","name":"Paycheck","amount":1733.33}],"savingsNow":1200}
 ${CLOSE}
@@ -735,7 +757,7 @@ function applySheet(json) {
     const ex = list.find(r => r.n.trim().toLowerCase() === name.trim().toLowerCase());
     if (u.amount === null) { if (ex) { S.sheet[key] = list.filter(r => r !== ex); n++; } continue; }
     const amt = Math.round(Number(u.amount) * 100) / 100; if (!isFinite(amt)) continue;
-    if (ex) { ex.v = amt; touched.push(ex.id); }
+    if (ex) { ex.v = amt; delete ex.src; delete ex.wk; touched.push(ex.id); }
     else { const blank = list.find(r => r.v === "" && !r.n.trim()); const r = blank || row(name); r.n = name; r.v = amt; if (!blank) list.push(r); touched.push(r.id); }
     n++;
   }
