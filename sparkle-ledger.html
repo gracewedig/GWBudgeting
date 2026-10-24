@@ -101,6 +101,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .subtotal .money { text-align: right; padding-right: 8px; }
 .subtotal .yr { text-align: right; font-family: var(--f-num); color: var(--muted); font-weight: 600; font-size: 13.5px; }
 .add { margin-top: 6px; border: 0; background: none; color: var(--accent); font-weight: 800; cursor: pointer; padding: 2px 0; font-size: 13.5px; }
+.sheet.loading { opacity: .55; pointer-events: none; }
 .bottom-line { margin-top: 18px; border-top: 3px double var(--ink); padding-top: 8px; }
 .bottom-line .subtotal { font-size: 16px; }
 .bottom-line .subtotal.neg .money { color: var(--bad); }
@@ -380,7 +381,7 @@ function renderSheet() {
     <div class="proj-grid"><div><span>In 3 months</span><b id="p3">$0</b></div><div><span>In 6 months</span><b id="p6">$0</b></div><div><span>In 12 months</span><b id="p12">$0</b></div></div>
     <p class="hint">Savings = income − spending − travel. ${P().word === "week" ? `Type weekly amounts and the monthly ones are worked out for you (weekly × ${wpmLabel()}, since a month is about ${wpmLabel()} weeks). Tap Monthly to see them.` : "Tap Weekly to type weekly amounts; they turn into monthly ones automatically."}</p>`;
   box.append(proj);
-  proj.querySelector("input").addEventListener("input", e => { S.sheet.savingsNow = e.target.value; save("sheet"); recalc(); });
+  
   const foot = document.createElement("div"); foot.className = "sheet-foot";
   foot.innerHTML = `<span class="hint">${P().word === "week" ? "Paid every 2 weeks? Type half your paycheck." : "Paid every 2 weeks? Monthly ≈ paycheck × 2.17."}</span>`;
   const reset = document.createElement("button"); reset.type = "button"; reset.className = "linkish"; reset.textContent = "Clear all numbers";
@@ -397,10 +398,6 @@ function rowEl(sec, r) {
     <input id="v-${r.id}" class="amt" inputmode="decimal" aria-label="${esc(r.n || "Amount")} per ${P().word}" placeholder="$0" value="${r.v === "" ? "" : esc(r2(num(r.v) * P().f))}">
     <span class="yr" id="y-${r.id}"></span>
     <button type="button" class="x" aria-label="Remove ${esc(r.n)}" title="Remove">✕</button>`;
-  const [nIn, vIn] = el.querySelectorAll("input");
-  nIn.addEventListener("input", () => { r.n = nIn.value; save("sheet"); });
-  vIn.addEventListener("input", () => { r.v = vIn.value.trim() === "" ? "" : num(vIn.value) / P().f; save("sheet"); recalc(); });
-  vIn.addEventListener("blur", () => { if (r.v !== "") vIn.value = r2(num(r.v) * P().f); });
   el.querySelector(".x").addEventListener("click", () => { S.sheet[sec.key] = S.sheet[sec.key].filter(x => x !== r); save("sheet"); renderSheet(); });
   return el;
 }
@@ -421,6 +418,34 @@ function recalc() {
   for (const m of [3, 6, 12]) { const el = $("#p" + m); if (el) el.textContent = fmt(now + t.save * m); }
   recalcGroceries();
 }
+
+// ---------- editing: one handler per area, always reading the box and the current data ----------
+const dirty = {}; let loaded = false;
+const markDirty = k => { if (!loaded) dirty[k] = true; };
+function findRow(id) { for (const sec of SECTIONS) { const r = (S.sheet[sec.key] || []).find(x => x.id === id); if (r) return r; } return null; }
+function commitSheet(t, tidy) {
+  if (t.id === "savingsNow") { S.sheet.savingsNow = t.value; markDirty("sheet"); save("sheet"); recalc(); return; }
+  const rowEl = t.closest(".row"); if (!rowEl) return;
+  const r = findRow(rowEl.dataset.id); if (!r) return;
+  if (t.classList.contains("amt")) {
+    const v = t.value.trim();
+    r.v = v === "" ? "" : num(v) / P().f;
+    if (tidy && r.v !== "") t.value = r2(num(r.v) * P().f);
+  } else r.n = t.value;
+  markDirty("sheet"); save("sheet"); recalc();
+}
+for (const ev of ["input", "change", "focusout"]) $("#sheet").addEventListener(ev, e => { if (e.target.matches("input")) commitSheet(e.target, ev !== "input"); });
+function commitGrocery(t, tidy) {
+  const el = t.closest(".g-row"); if (!el) return;
+  const g = S.groceries.find(x => x.id === el.dataset.id); if (!g) return;
+  if (t.type === "checkbox") { g.done = t.checked; el.classList.toggle("done", g.done); }
+  else if (t.classList.contains("n")) g.n = t.value;
+  else if (t.classList.contains("q")) g.q = t.value.trim();
+  else if (t.classList.contains("p")) { g.p = t.value.trim(); if (tidy && g.p !== "") { g.p = num(g.p); t.value = g.p.toFixed(2); } }
+  markDirty("groceries"); save("groceries"); recalcGroceries();
+  if (!t.classList.contains("n") && t.type !== "checkbox") { bump(el.querySelector(".lt")); bump($("#gTotal2")); bump($("#gTotal")); }
+}
+for (const ev of ["input", "change", "focusout"]) $("#gList").addEventListener(ev, e => { if (e.target.matches("input")) commitGrocery(e.target, ev !== "input"); });
 
 // ---------- tabs ----------
 const TABS = ["budget", "groceries"];
@@ -444,13 +469,6 @@ function renderGroceries() {
       <input class="t p" id="gp-${g.id}" inputmode="decimal" aria-label="Price each" value="${g.p === "" ? "" : esc(g.p)}" placeholder="$0">
       <span class="lt" id="gl-${g.id}"></span>
       <button type="button" class="x" aria-label="Remove ${esc(g.n)}" title="Remove">✕</button>`;
-    const [cb, n, q, p] = el.querySelectorAll("input");
-    cb.addEventListener("change", () => { g.done = cb.checked; el.classList.toggle("done", g.done); save("groceries"); recalcGroceries(); });
-    n.addEventListener("input", () => { g.n = n.value; save("groceries"); });
-    const changed = () => { save("groceries"); recalcGroceries(); bump(el.querySelector(".lt")); bump($("#gTotal2")); bump($("#gTotal")); };
-    q.addEventListener("input", () => { g.q = q.value.trim(); changed(); });
-    p.addEventListener("input", () => { g.p = p.value.trim(); changed(); });
-    p.addEventListener("blur", () => { if (g.p !== "") { g.p = num(g.p); p.value = g.p.toFixed(2); } });
     el.querySelector(".x").addEventListener("click", () => { S.groceries = S.groceries.filter(x => x !== g); save("groceries"); renderGroceries(); });
     box.append(el);
   }
@@ -483,7 +501,7 @@ function recalcGroceries() {
     over ? `<span class="over">${fmt2(shown - budget)} over your ${P().word}ly grocery budget</span><span>${Math.round(shown / budget * 100)}% of ${fmt(budget)}</span>` :
     `<span><b>${fmt2(budget - shown)}</b> left in your ${P().word}ly grocery budget</span><span>${Math.round(shown / budget * 100)}% of ${fmt(budget)}</span>`;
 }
-function addGrocery(n, p, q = "") { const g = { id: uid(), n, q: q === "" || q == null ? "" : String(q), p: p === "" || p == null ? "" : num(p), done: false }; S.groceries.push(g); return g; }
+function addGrocery(n, p, q = "") { markDirty("groceries"); const g = { id: uid(), n, q: q === "" || q == null ? "" : String(q), p: p === "" || p == null ? "" : num(p), done: false }; S.groceries.push(g); return g; }
 // Wired to the button and Enter key directly: the viewer's frame may block form submission.
 function addFromForm() {
   const nameEl = $("#gName"), priceEl = $("#gPrice"), msg = $("#gAdded"), n = nameEl.value.trim();
@@ -527,16 +545,18 @@ async function initStore() {
       const snap = await base.get();
       for (const d of snap.docs) {
         const v = d.data(); if (!v) continue;
-        if (d.id === "proforma" && v.sheet) S.sheet = { ...DEFAULT_SHEET(), ...v.sheet };
+        if (d.id === "proforma" && v.sheet && !dirty.sheet) S.sheet = { ...DEFAULT_SHEET(), ...v.sheet };
         else if (d.id === "chat2") S.chat = v.msgs || [];
         else if (d.id === "groceries") { const local = S.groceries, saved = Array.isArray(v.items) ? v.items : []; S.groceries = saved.concat(local.filter(g => !saved.some(x => x.id === g.id))); if (local.length) save("groceries", 0); }
         else if (d.id.startsWith("stmt_")) S.statements.push({ id: d.id.slice(5), name: v.name, importedAt: v.importedAt, txns: (v.txns || []).map(r => ({ d: r[0], t: r[1], a: r[2] })) });
       }
       S.statements.sort((a, b) => a.importedAt - b.importedAt);
+      loaded = true; if (dirty.sheet) save("sheet", 0); if (dirty.groceries) save("groceries", 0);
       setStatus(true, "Saved privately to your account"); return;
     } catch (e) { mode = "local"; }
   }
-  try { const v = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); if (v.sheet) S.sheet = { ...DEFAULT_SHEET(), ...v.sheet }; S.chat = v.chat || []; S.statements = v.statements || []; const local = S.groceries, saved = Array.isArray(v.groceries) ? v.groceries : []; S.groceries = saved.concat(local.filter(g => !saved.some(x => x.id === g.id))); } catch (e) {}
+  try { const v = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); if (v.sheet && !dirty.sheet) S.sheet = { ...DEFAULT_SHEET(), ...v.sheet }; S.chat = v.chat || []; S.statements = v.statements || []; const local = S.groceries, saved = Array.isArray(v.groceries) ? v.groceries : []; S.groceries = saved.concat(local.filter(g => !saved.some(x => x.id === g.id))); } catch (e) {}
+  loaded = true; if (dirty.sheet || dirty.groceries) save("x", 0);
   setStatus(false, "Saved in this browser only");
 }
 function save(key, delay = 500) {
@@ -870,6 +890,7 @@ clearBtn.addEventListener("click", () => {
 // ---------- boot ----------
 renderPeriod(); renderSheet(); renderGroceries(); renderChat(); renderFiles();
 try { const t = localStorage.getItem(LS_KEY + "-tab"); if (TABS.includes(t)) showTab(t); } catch (e) {}
-initStore().then(() => { renderPeriod(); renderSheet(); renderGroceries(); renderChat(); renderFiles(); });
+$("#sheet").classList.add("loading");
+initStore().catch(e => console.warn(e)).finally(() => { loaded = true; $("#sheet").classList.remove("loading"); }).then(() => { renderPeriod(); renderSheet(); renderGroceries(); renderChat(); renderFiles(); });
 })();
 </script>
