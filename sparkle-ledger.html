@@ -255,7 +255,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
         <form class="g-add" id="gForm">
           <input id="gName" placeholder="Add an item, like eggs" aria-label="Item name">
           <input id="gPrice" inputmode="decimal" placeholder="$ price" aria-label="Price">
-          <button type="submit">Add</button>
+          <button type="button" id="gAddBtn">Add</button>
         </form>
         <div class="g-total"><span>Grocery list total</span><span class="money" id="gTotal2">$0.00</span></div>
         <div class="g-actions">
@@ -292,7 +292,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
         </button>
         <input type="file" id="file" accept=".csv,.pdf,.txt,text/csv,application/pdf" multiple hidden>
         <textarea id="input" rows="1" placeholder="Tell me your pay, bills, trips… or ask anything" aria-label="Message"></textarea>
-        <button class="send" id="send" type="submit">Send</button>
+        <button class="send" id="send" type="button">Send</button>
       </form>
     </section>
   </div>
@@ -467,10 +467,17 @@ function recalcGroceries() {
     `<span><b>${fmt2(budget - total)}</b> left in your grocery budget</span><span>${Math.round(total / budget * 100)}% of ${fmt(budget)}</span>`;
 }
 function addGrocery(n, p, q = "") { const g = { id: uid(), n, q: q === "" || q == null ? "" : String(q), p: p === "" || p == null ? "" : num(p), done: false }; S.groceries.push(g); return g; }
+// Wired to the button and Enter key directly: the viewer's frame may block form submission.
+function addFromForm() {
+  const nameEl = $("#gName"), priceEl = $("#gPrice"), n = nameEl.value.trim();
+  if (!n) { nameEl.placeholder = "Type the item name here first"; nameEl.focus(); return; }
+  addGrocery(n, priceEl.value.trim()); nameEl.value = ""; priceEl.value = ""; nameEl.placeholder = "Add an item, like eggs";
+  save("groceries"); renderGroceries(); nameEl.focus();
+}
+$("#gAddBtn").addEventListener("click", addFromForm);
+for (const s of ["#gName", "#gPrice"]) $(s).addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); addFromForm(); } });
 $("#gForm").addEventListener("submit", e => {
-  e.preventDefault(); const n = $("#gName").value.trim(); if (!n) { $("#gName").focus(); return; }
-  addGrocery(n, $("#gPrice").value.trim()); $("#gName").value = ""; $("#gPrice").value = "";
-  save("groceries"); renderGroceries(); $("#gName").focus();
+  e.preventDefault(); addFromForm();
 });
 $("#gUse").addEventListener("click", () => {
   const total = S.groceries.reduce((a, g) => a + gLineTotal(g), 0);
@@ -802,6 +809,7 @@ function autosize() { input.style.height = "auto"; input.style.height = Math.min
 input.addEventListener("input", autosize);
 input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input.value); } });
 $("#form").addEventListener("submit", e => { e.preventDefault(); send(input.value); });
+$("#send").addEventListener("click", () => send(input.value));
 const clearBtn = $("#clear");
 clearBtn.addEventListener("click", () => {
   if (!clearBtn.dataset.armed) { clearBtn.dataset.armed = "1"; clearBtn.textContent = "Tap again (budget stays)"; setTimeout(() => { delete clearBtn.dataset.armed; clearBtn.textContent = "New chat"; }, 3000); return; }
