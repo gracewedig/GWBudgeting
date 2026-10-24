@@ -200,9 +200,18 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .btn-soft:hover { background: var(--surface-2); }
 .g-empty { color: var(--muted); text-align: center; padding: 18px 8px; font-size: 14px; }
 @media (max-width: 480px) {
-  .g-cols, .g-row { grid-template-columns: 26px minmax(0, 1fr) 44px 70px 24px; }
-  .g-cols span:nth-child(5), .g-row .lt { display: none; }
+  .g-cols { display: none; }
+  .g-row { grid-template-columns: 26px 60px 84px minmax(0, 1fr) 24px; grid-template-areas: "cb n n n x" ". q p lt ."; row-gap: 4px; padding: 6px 0; }
+  .g-row input[type="checkbox"] { grid-area: cb; }
+  .g-row input.n { grid-area: n; font-weight: 700; }
+  .g-row input.q { grid-area: q; }
+  .g-row input.p { grid-area: p; }
+  .g-row .lt { grid-area: lt; font-weight: 800; }
+  .g-row .x { grid-area: x; }
 }
+.g-row .lt.bump, .tile .value.bump, .g-total .money.bump { animation: bump .5s ease-out; }
+@keyframes bump { 0% { color: var(--accent); transform: scale(1.06); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .g-row .lt.bump, .tile .value.bump, .g-total .money.bump { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .brand h1, .row.flash input.amt, .g-row.flash input.p { animation: none; } }
 </style>
 
@@ -296,7 +305,12 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const use = n => (window.claude && window.claude.use) ? window.claude.use(n).catch(() => null) : Promise.resolve(null);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const num = v => { const x = parseFloat(String(v).replace(/[$,]/g, "")); return isFinite(x) ? x : 0; };
+const num = v => {
+  let s = String(v ?? "").replace(/[\s$]/g, "");
+  if (/^-?\d+,\d{1,2}$/.test(s)) s = s.replace(",", "."); // "3,50" means 3.50
+  const x = parseFloat(s.replace(/,/g, "")); return isFinite(x) ? x : 0;
+};
+const bump = el => { if (!el) return; el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); };
 const fmt = n => (n < 0 ? "−" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("en-US");
 const fmt2 = n => (n < 0 ? "-" : "") + "$" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -422,8 +436,9 @@ function renderGroceries() {
     const [cb, n, q, p] = el.querySelectorAll("input");
     cb.addEventListener("change", () => { g.done = cb.checked; el.classList.toggle("done", g.done); save("groceries"); recalcGroceries(); });
     n.addEventListener("input", () => { g.n = n.value; save("groceries"); });
-    q.addEventListener("input", () => { g.q = q.value.trim(); save("groceries"); recalcGroceries(); });
-    p.addEventListener("input", () => { g.p = p.value.trim(); save("groceries"); recalcGroceries(); });
+    const changed = () => { save("groceries"); recalcGroceries(); bump(el.querySelector(".lt")); bump($("#gTotal2")); bump($("#gTotal")); };
+    q.addEventListener("input", () => { g.q = q.value.trim(); changed(); });
+    p.addEventListener("input", () => { g.p = p.value.trim(); changed(); });
     p.addEventListener("blur", () => { if (g.p !== "") { g.p = num(g.p); p.value = g.p.toFixed(2); } });
     el.querySelector(".x").addEventListener("click", () => { S.groceries = S.groceries.filter(x => x !== g); save("groceries"); renderGroceries(); });
     box.append(el);
