@@ -104,6 +104,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .subtotal .money { text-align: right; padding-right: 8px; }
 .subtotal .yr { text-align: right; font-family: var(--f-num); color: var(--muted); font-weight: 600; font-size: 13.5px; }
 .add { margin-top: 6px; border: 0; background: none; color: var(--accent); font-weight: 800; cursor: pointer; padding: 2px 0; font-size: 13.5px; }
+.recalc-bar { display: flex; justify-content: flex-end; padding: 10px 18px 0; }
 .sheet.loading { opacity: .55; pointer-events: none; }
 .bottom-line { margin-top: 18px; border-top: 3px double var(--ink); padding-top: 8px; }
 .bottom-line .subtotal { font-size: 16px; }
@@ -238,7 +239,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
       </svg>
       <h1>Sparkle Ledger</h1>
     </div>
-    <span class="status" id="status"><i></i><span id="statusText">Connecting…</span><span class="ver">· v12</span></span>
+    <span class="status" id="status"><i></i><span id="statusText">Connecting…</span><span class="ver">· v13</span></span>
   </header>
 
   <div class="cols">
@@ -291,6 +292,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
         <div class="tile"><div class="label">Travel budget</div><div class="value" id="tTravel">$0</div><div class="yr" id="tTravelY">$0 / yr</div></div>
         <div class="tile hero"><div class="label">Savings</div><div class="value" id="tSave">$0</div><div class="yr" id="tSaveY">$0 / yr</div></div>
       </div>
+      <div class="recalc-bar"><button type="button" class="btn-soft" id="recalcBtn">↻ Recalculate</button></div>
       <div class="sheet" id="sheet"></div>
     </section>
     </div>
@@ -418,6 +420,7 @@ function recalc() {
   const b = $("#bottom");
   if (b) { b.classList.toggle("neg", t.save < 0); b.innerHTML = `<span>${t.save < 0 ? "Short each " : "Savings each "}${P().word}</span><span class="money">${fmt(t.save * P().f)}</span><span class="yr">${fmt(t.save * 12)}</span><span></span>`; }
   const set = (id, v) => { const wk = P().word === "week"; $("#" + id).innerHTML = `${fmt(v * P().f)}<small class="per">/${P().short}</small>`; $("#" + id + "Y").textContent = (wk ? fmt(v) + " / mo" : fmt(v / WPM()) + " / wk") + " · " + fmt(v * 12) + " / yr"; };
+  dlog("recalc", `spend=${Math.round(t.spend)} save=${Math.round(t.save)}`);
   set("tIncome", t.income); set("tSpend", t.spend); set("tTravel", t.travel); set("tSave", t.save);
   $("#tSave").classList.toggle("neg", t.save < 0);
   const now = num(S.sheet.savingsNow);
@@ -441,10 +444,25 @@ function fixIds() {
   S.groceries = (Array.isArray(S.groceries) ? S.groceries : []).filter(Boolean);
   for (const g of S.groceries) { if (!g.id || gs.has(g.id)) g.id = uid(); gs.add(g.id); if (g.n == null) g.n = ""; if (g.q == null) g.q = ""; if (g.p == null) g.p = ""; }
 }
+const LOG = [];
+function dlog(kind, info) {
+  try {
+    LOG.push([new Date().toISOString().slice(11, 19), kind, info == null ? "" : String(info).slice(0, 120)]);
+    if (LOG.length > 80) LOG.shift();
+    clearTimeout(dlog.t); dlog.t = setTimeout(() => { if (base && mode === "db") base.doc("debug").set({ ver: APP_VER, by: INSTANCE, ua: navigator.userAgent, w: innerWidth, sheets: document.querySelectorAll("#sheet").length, rows: document.querySelectorAll("#sheet .row").length, loaded, mode, log: LOG }).catch(() => {}); }, 1500);
+  } catch (e) {}
+}
+window.addEventListener("error", e => dlog("ERROR", (e.message || "") + " @" + (e.lineno || "")));
+window.addEventListener("unhandledrejection", e => dlog("REJECT", e.reason?.message || e.reason));
+for (const ev of ["keydown", "input", "change", "focusout", "beforeinput"]) document.addEventListener(ev, e => {
+  const t = e.target; if (!t || !t.matches || !t.matches("input, textarea")) return;
+  dlog("doc:" + ev, `${t.id || t.className}|${ev === "keydown" ? e.key : t.value}|in#sheet=${!!t.closest("#sheet")}|in#gList=${!!t.closest("#gList")}`);
+}, true);
 function commitSheet(t, tidy) {
   if (t.id === "savingsNow") { S.sheet.savingsNow = t.value; markDirty("sheet"); save("sheet"); recalc(); return; }
   const rowEl = t.closest(".row"); if (!rowEl) return;
-  const r = findRow(rowEl.dataset.id, rowEl); if (!r) return;
+  const r = findRow(rowEl.dataset.id, rowEl); if (!r) { dlog("commitSheet:noRow", rowEl.dataset.id); return; }
+  dlog("commitSheet", `${r.n}|box=${t.value}|before=${r.v}`);
   if (t.classList.contains("amt")) {
     const v = t.value.trim();
     r.v = v === "" ? "" : num(v) / P().f;
@@ -469,10 +487,12 @@ function enterToNext(e, area) {
   if (nextId) document.getElementById(nextId)?.focus();
 }
 $("#sheet").addEventListener("keydown", e => enterToNext(e, "#sheet"));
+$("#recalcBtn").addEventListener("click", () => { dlog("recalcBtn", ""); recalcAll(); });
 $("#gList").addEventListener("keydown", e => enterToNext(e, "#gList"));
 function commitGrocery(t, tidy) {
   const el = t.closest(".g-row"); if (!el) return;
-  const g = S.groceries.find(x => x.id === el.dataset.id); if (!g) return;
+  const g = S.groceries.find(x => x.id === el.dataset.id); if (!g) { dlog("commitGrocery:noItem", el.dataset.id); return; }
+  dlog("commitGrocery", `${g.n}|${t.className}|box=${t.value}`);
   if (t.type === "checkbox") { g.done = t.checked; el.classList.toggle("done", g.done); }
   else if (t.classList.contains("n")) g.n = t.value;
   else if (t.classList.contains("q")) g.q = t.value.trim();
@@ -503,7 +523,7 @@ function reconcile() {
     if (n && n.value !== g.n) { g.n = n.value; groceriesChanged = true; }
     if (cb && cb.checked !== !!g.done) { g.done = cb.checked; el.classList.toggle("done", g.done); groceriesChanged = true; }
   });
-  if (sheetChanged) { save("sheet"); recalc(); }
+  if (sheetChanged) { dlog("reconcile:sheet", "fixed mismatch"); save("sheet"); recalc(); }
   if (groceriesChanged) { save("groceries"); recalcGroceries(); }
 }
 setInterval(() => { if (loaded) reconcile(); }, 1500);
@@ -596,7 +616,7 @@ $("#gClearDone").addEventListener("click", () => { S.groceries = S.groceries.fil
 
 // ---------- storage: private to this person's account, else this browser ----------
 const LS_KEY = "sparkle-ledger-v3";
-const APP_VER = 12, INSTANCE = uid();
+const APP_VER = 13, INSTANCE = uid();
 let readOnly = false;
 function showBanner(kind) {
   $("#bannerText").textContent = kind === "new"
@@ -641,7 +661,7 @@ async function initStore() {
       fixIds(); loaded = true; save("sheet", 0); save("groceries", 0);
       watchDoc("proforma", v => { if (v.sheet) { S.sheet = { ...DEFAULT_SHEET(), ...v.sheet }; fixIds(); renderPeriod(); renderSheet(); } });
       watchDoc("groceries", v => { if (Array.isArray(v.items)) { S.groceries = v.items; fixIds(); renderGroceries(); } });
-      setStatus(true, "Saved privately to your account"); return;
+      setStatus(true, "Saved privately to your account"); dlog("loaded", `rows=${document.querySelectorAll("#sheet .row").length}`); return;
     } catch (e) { mode = "local"; }
   }
   try { const v = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); if (v.sheet && !dirty.sheet) S.sheet = { ...DEFAULT_SHEET(), ...v.sheet }; S.chat = v.chat || []; S.statements = v.statements || []; const local = S.groceries, saved = Array.isArray(v.groceries) ? v.groceries : []; S.groceries = saved.concat(local.filter(g => !saved.some(x => x.id === g.id))); } catch (e) {}
