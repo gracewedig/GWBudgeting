@@ -447,6 +447,32 @@ function commitGrocery(t, tidy) {
 }
 for (const ev of ["input", "change", "focusout"]) $("#gList").addEventListener(ev, e => { if (e.target.matches("input")) commitGrocery(e.target, ev !== "input"); });
 
+// Safety net: whatever a box shows is what the math uses, even if the browser or claude.ai
+// refilled the box without telling the page (for example after the page updates itself).
+function reconcile() {
+  let sheetChanged = false, groceriesChanged = false;
+  const same = (a, b) => a === b || (a !== "" && b !== "" && Math.abs(a - b) < 0.005);
+  document.querySelectorAll("#sheet .row").forEach(el => {
+    const r = findRow(el.dataset.id), inp = el.querySelector("input.amt"); if (!r || !inp) return;
+    const shown = inp.value.trim() === "" ? "" : num(inp.value), have = r.v === "" ? "" : r2(num(r.v) * P().f);
+    if (!same(shown, have)) { r.v = shown === "" ? "" : shown / P().f; sheetChanged = true; }
+    const nm = el.querySelector("input:not(.amt)"); if (nm && nm.value !== r.n) { r.n = nm.value; sheetChanged = true; }
+  });
+  const sv = $("#savingsNow"); if (sv && sv.value !== String(S.sheet.savingsNow ?? "")) { S.sheet.savingsNow = sv.value; sheetChanged = true; }
+  document.querySelectorAll("#gList .g-row").forEach(el => {
+    const g = S.groceries.find(x => x.id === el.dataset.id); if (!g) return;
+    const q = el.querySelector("input.q"), pr = el.querySelector("input.p"), n = el.querySelector("input.n"), cb = el.querySelector("input[type=checkbox]");
+    if (q && q.value.trim() !== String(g.q ?? "")) { g.q = q.value.trim(); groceriesChanged = true; }
+    const ps = pr && pr.value.trim() === "" ? "" : num(pr?.value), ph = g.p === "" ? "" : num(g.p);
+    if (pr && !same(ps, ph)) { g.p = ps; groceriesChanged = true; }
+    if (n && n.value !== g.n) { g.n = n.value; groceriesChanged = true; }
+    if (cb && cb.checked !== !!g.done) { g.done = cb.checked; el.classList.toggle("done", g.done); groceriesChanged = true; }
+  });
+  if (sheetChanged) { save("sheet"); recalc(); }
+  if (groceriesChanged) { save("groceries"); recalcGroceries(); }
+}
+setInterval(() => { if (loaded) reconcile(); }, 1500);
+
 // ---------- tabs ----------
 const TABS = ["budget", "groceries"];
 function showTab(name) {
@@ -546,7 +572,7 @@ async function initStore() {
       for (const d of snap.docs) {
         const v = d.data(); if (!v) continue;
         if (d.id === "proforma" && v.sheet && !dirty.sheet) S.sheet = { ...DEFAULT_SHEET(), ...v.sheet };
-        else if (d.id === "chat2") S.chat = v.msgs || [];
+        else if (d.id === "chat2") S.chat = (v.msgs || []).filter(m => m && m.content);
         else if (d.id === "groceries") { const local = S.groceries, saved = Array.isArray(v.items) ? v.items : []; S.groceries = saved.concat(local.filter(g => !saved.some(x => x.id === g.id))); if (local.length) save("groceries", 0); }
         else if (d.id.startsWith("stmt_")) S.statements.push({ id: d.id.slice(5), name: v.name, importedAt: v.importedAt, txns: (v.txns || []).map(r => ({ d: r[0], t: r[1], a: r[2] })) });
       }
@@ -628,7 +654,7 @@ function csvToTxns(text) {
   return null;
 }
 let sampleNS = null;
-async function getSample() { if (sampleNS === null) sampleNS = (await use("sample")) || false; return sampleNS || null; }
+async function getSample() { if (!sampleNS) sampleNS = (await use("sample")) || null; return sampleNS; }
 async function claudeExtract(text, label, say) {
   const sample = await getSample();
   if (!sample) throw new Error("Claude isn't available here, so only standard CSV files can be read.");
@@ -745,7 +771,7 @@ function contextBlock() {
   let out = `TODAY: ${new Date().toISOString().slice(0, 10)}\n\nTHEIR MONTHLY PRO FORMA (all amounts are per month):\n${sheetText()}`;
   const gt = S.groceries.reduce((a, g) => a + gLineTotal(g), 0);
   out += `\nGROCERY LIST (Groceries tab, a ONE-WEEK shopping list), weekly total ${fmt2(gt)}, about ${fmt2(gt * WPM())} per month:\n` + (S.groceries.length ? S.groceries.map(g => `  ${g.done ? "[x]" : "[ ]"} ${g.n} | qty ${g.q || 1} | ${g.p === "" ? "no price" : fmt2(num(g.p)) + " each"}`).join("\n") : "  (empty)") + "\n";
-  const tx = S.statements.flatMap(s => s.txns).sort((a, b) => b.d.localeCompare(a.d));
+  const tx = S.statements.flatMap(s => s.txns || []).map(t => ({ d: String(t.d || ""), t: String(t.t || ""), a: Number(t.a) || 0 })).sort((a, b) => b.d.localeCompare(a.d));
   if (tx.length) {
     const byMonth = {};
     for (const t of tx) { const m = t.d.slice(0, 7); (byMonth[m] ||= { in: 0, out: 0 }); t.a > 0 ? byMonth[m].in += t.a : byMonth[m].out -= t.a; }
@@ -825,32 +851,61 @@ function renderChat() {
   for (const m of S.chat) {
     const el = document.createElement("div"); el.className = "msg " + m.role;
     if (m.role === "assistant") el.innerHTML = md(visible(m.content)) || "<p>…</p>"; else el.textContent = m.content;
+    if (m.perm) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.style.marginTop = "8px"; b.textContent = "Turn on Claude for this page";
+      b.addEventListener("click", turnOnClaude); el.append(document.createElement("br"), b);
+    }
     log.append(el);
   }
   log.scrollTop = log.scrollHeight;
 }
+async function turnOnClaude() {
+  const perms = await use("permissions");
+  try {
+    const r = perms ? await perms.request(["sample"]) : null;
+    if (r && r.sample === "granted") { S.chat.push({ role: "note", content: "✦ Claude is on. Send your message again." }); renderChat(); return; }
+    if (perms) await perms.manage();
+  } catch (e) {}
+  S.chat.push({ role: "note", content: "If nothing opened, use the page's menu at the top of claude.ai → Permissions, and allow Claude." }); renderChat();
+}
+function safeContext() {
+  try { return contextBlock(); }
+  catch (e) { console.warn("context", e); try { return "THEIR MONTHLY PRO FORMA:\n" + sheetText(); } catch (e2) { return "(budget data unavailable)"; } }
+}
+let busy = false;
 async function send(text) {
-  text = text.trim(); if (!text || abortCtl) return;
+  text = String(text || "").trim(); if (!text || busy) return;
+  busy = true; $("#send").disabled = true;
   S.chat.push({ role: "user", content: text });
   const reply = { role: "assistant", content: "" }; S.chat.push(reply);
   input.value = ""; autosize(); renderChat();
-  const sample = await getSample();
-  if (!sample) { reply.content = "I can't reach Claude from here. Open this page while signed in to claude.ai and try again. The budget still works on its own."; save("chat", 0); renderChat(); return; }
   const log = $("#log"), bubble = log.lastElementChild;
-  const turns = [{ role: "user", content: INSTRUCTIONS + "\n\n=== DATA ===\n" + contextBlock() + "=== END DATA ===" }];
-  for (const m of S.chat.slice(-25, -1)) if (m.role !== "note" && m.content) turns.push({ role: m.role, content: m.content });
-  abortCtl = new AbortController(); $("#send").disabled = true;
+  let watchdog = null, timedOut = false;
   try {
-    const res = await sample(turns, { signal: abortCtl.signal, cache: false, onText: ({ text }) => { bubble.innerHTML = md(visible(text)) || "<p>…</p>"; log.scrollTop = log.scrollHeight; } });
-    const a = res.text.indexOf(OPEN), b = res.text.indexOf(CLOSE);
-    reply.content = visible(res.text);
-    if (a >= 0 && b > a && applySheet(res.text.slice(a + OPEN.length, b).trim())) S.chat.push({ role: "note", content: "✦ Updated your page" });
+    const sample = await getSample();
+    if (!sample) throw { code: "unavailable" };
+    const turns = [{ role: "user", content: INSTRUCTIONS + "\n\n=== DATA ===\n" + safeContext() + "=== END DATA ===" }];
+    for (const m of S.chat.slice(-25, -1)) if ((m.role === "user" || m.role === "assistant") && m.content) turns.push({ role: m.role, content: String(m.content).slice(0, 8000) });
+    abortCtl = new AbortController();
+    let last = Date.now();
+    // if Claude goes quiet for 2 minutes, stop waiting so the chat never stays locked
+    watchdog = setInterval(() => { if (Date.now() - last > 120000) { timedOut = true; abortCtl?.abort(); } }, 5000);
+    const res = await sample(turns, { signal: abortCtl.signal, cache: false, onText: ({ text }) => { last = Date.now(); reply.content = text; bubble.innerHTML = md(visible(text)) || "<p>…</p>"; log.scrollTop = log.scrollHeight; } });
+    const full = String(res?.text || ""), a = full.indexOf(OPEN), b = full.indexOf(CLOSE);
+    reply.content = visible(full) || "_(Claude didn't say anything. Try asking again.)_";
+    if (a >= 0 && b > a && applySheet(full.slice(a + OPEN.length, b).trim())) S.chat.push({ role: "note", content: "✦ Updated your page" });
   } catch (e) {
-    if (e?.code === "not_granted" || e?.code === "sampling_disabled") reply.content = "Claude access isn't turned on for this page yet. Allow it when asked, then send your message again.";
-    else if (e?.code === "rate_limited") reply.content = (e.text ? visible(e.text) + "\n\n" : "") + "_I've hit a usage limit. Try again in a little while._";
-    else if (e?.code !== "cancelled") reply.content = (e?.text ? visible(e.text) + "\n\n" : "") + "_Something went wrong. Please send that again._";
+    const code = e?.code || "", partial = e?.text ? visible(e.text) + "\n\n" : "";
+    console.warn("chat error", e);
+    if (code === "not_granted" || code === "sampling_disabled" || code === "capability_disabled") { reply.content = "Claude isn't turned on for this page yet. Tap the button below, allow it, then send your message again."; reply.perm = true; }
+    else if (code === "unavailable") { reply.content = "I can't reach Claude right now. Make sure you opened this page from claude.ai and you're signed in, then send again."; reply.perm = true; }
+    else if (code === "rate_limited") reply.content = partial + "_You've hit a usage limit for now. Try again in a little while._";
+    else if (code === "session_expired") reply.content = "_Your claude.ai sign-in expired. Sign in again, then send your message._";
+    else if (timedOut) reply.content = partial + "_Claude took too long to answer. Please send that again._";
+    else if (code === "cancelled") reply.content = reply.content ? visible(reply.content) : "";
+    else reply.content = partial + `_Something went wrong${code ? " (" + code + ")" : ""}. Please send that again._`;
   } finally {
-    abortCtl = null; $("#send").disabled = false;
+    clearInterval(watchdog); abortCtl = null; busy = false; $("#send").disabled = false;
     if (!reply.content) S.chat.splice(S.chat.indexOf(reply), 1);
     save("chat", 0); renderChat();
   }
@@ -866,6 +921,7 @@ clearBtn.addEventListener("click", () => {
   if (!clearBtn.dataset.armed) { clearBtn.dataset.armed = "1"; clearBtn.textContent = "Tap again (budget stays)"; setTimeout(() => { delete clearBtn.dataset.armed; clearBtn.textContent = "New chat"; }, 3000); return; }
   delete clearBtn.dataset.armed; clearBtn.textContent = "New chat";
   if (abortCtl) abortCtl.abort(); S.chat = []; save("chat", 0); renderChat();
+  busy = false; $("#send").disabled = false;
 });
 
 // ---------- sparkles ----------
